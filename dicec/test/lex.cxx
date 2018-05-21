@@ -2,7 +2,9 @@
 
 #include <catch.hpp>
 
-TEST_CASE("Empty source", "[lex]")
+#include <string>
+
+TEST_CASE("lex empty source", "[lex]")
 {
     std::string source("");
     dc::lexer lexer(&*source.begin(), &*source.end());
@@ -11,7 +13,7 @@ TEST_CASE("Empty source", "[lex]")
     REQUIRE(lexeme.type == dc::lexeme_type::eof);
 }
 
-TEST_CASE("Identifier", "[lex]")
+TEST_CASE("lex identifier", "[lex]")
 {
     std::string source("foo");
     dc::lexer lexer(&*source.begin(), &*source.end());
@@ -21,7 +23,7 @@ TEST_CASE("Identifier", "[lex]")
     REQUIRE(lexeme.value == "foo");
 }
 
-TEST_CASE("Keyword", "[lex]")
+TEST_CASE("lex keyword", "[lex]")
 {
     std::string source("FUNCTION");
     dc::lexer lexer(&*source.begin(), &*source.end());
@@ -30,7 +32,7 @@ TEST_CASE("Keyword", "[lex]")
     REQUIRE(lexeme.type == dc::lexeme_type::kw_function);
 }
 
-TEST_CASE("Hello, world!", "[lex]")
+TEST_CASE("lex 'Hello, world!'", "[lex]")
 {
     std::string source(R"(
         USING std::io.

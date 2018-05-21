@@ -4,6 +4,11 @@
 #include <string>
 #include <utility>
 
+dc::node dc::node::make_source_unit(soloc begin, std::vector<node> definitions)
+{
+    return {begin, node_type::source_unit, "", std::move(definitions)};
+}
+
 dc::node dc::node::make_parameter_list(soloc begin, std::vector<node> parameters)
 {
     return {begin, node_type::parameter_list, "", std::move(parameters)};

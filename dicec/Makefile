@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-Wall -Wextra -Wpedantic -std=c++14 -O2 -I vendor/catch
+CXXFLAGS=-Wall -Wextra -Wpedantic -fmax-errors=1 -std=c++14 -O2 -I vendor/catch
 
 LD=g++
 LDFLAGS=

@@ -9,6 +9,8 @@ namespace dc
 {
     enum class node_type
     {
+        source_unit,
+
         parameter_list,
         parameter,
 
@@ -29,6 +31,8 @@ namespace dc
         node_type type;
         std::string string_value;
         std::vector<node> children;
+
+        static node make_source_unit(soloc begin, std::vector<node> definitions);
 
         static node make_parameter_list(soloc begin, std::vector<node> parameters);
         static node make_parameter(soloc begin, std::string name, node type);
