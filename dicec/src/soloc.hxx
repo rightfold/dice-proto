@@ -6,5 +6,7 @@ namespace dc
     {
         long line;
         long column;
+
+        void advance(char c);
     };
 }
