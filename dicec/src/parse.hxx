@@ -23,6 +23,14 @@ namespace dc
         node function_definition(lexer& l);
         node procedure_definition(lexer& l);
 
+        bool is_statement(lexer& l);
+        bool is_return_statement(lexer& l);
+        node statement(lexer& l);
+        node return_statement(lexer& l);
+
+        node expression(lexer& l);
+        node variable_expression(lexer& l);
+
         node type(lexer& l);
 
         struct error : std::runtime_error

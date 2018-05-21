@@ -24,16 +24,16 @@ dc::node dc::node::make_statement_list(soloc begin, std::vector<node> statements
     return {begin, node_type::statement_list, "", std::move(statements)};
 }
 
-dc::node dc::node::make_function_definition(soloc begin, std::string name, node parameters, node body)
+dc::node dc::node::make_function_definition(soloc begin, std::string name, node parameters, node return_type, node body)
 {
     return {begin, node_type::function_definition, std::move(name),
-            {std::move(parameters), std::move(body)}};
+            {std::move(parameters), std::move(return_type), std::move(body)}};
 }
 
-dc::node dc::node::make_procedure_definition(soloc begin, std::string name, node parameters, node body)
+dc::node dc::node::make_procedure_definition(soloc begin, std::string name, node parameters, node return_type, node body)
 {
     return {begin, node_type::procedure_definition, std::move(name),
-            {std::move(parameters), std::move(body)}};
+            {std::move(parameters), std::move(return_type), std::move(body)}};
 }
 
 dc::node dc::node::make_return_statement(soloc begin, node value)

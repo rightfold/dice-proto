@@ -124,13 +124,18 @@ dc::node dc::parse::function_definition(lexer& l)
     auto name = expect(l, lexeme_type::identifier).value;
     auto parameters = parameter_list(l);
     auto return_type = type(l);
-    expect(l, lexeme_type::pu_period);
+    auto body_begin = expect(l, lexeme_type::pu_period).begin;
+
+    auto body = node::make_statement_list(
+        body_begin,
+        many(l, &is_statement, &statement)
+    );
 
     expect(l, lexeme_type::kw_end);
     expect(l, lexeme_type::kw_function);
     expect(l, lexeme_type::pu_period);
 
-    return node::make_function_definition(begin, name, parameters, {});
+    return node::make_function_definition(begin, name, parameters, return_type, body);
 }
 
 dc::node dc::parse::procedure_definition(lexer& l)
@@ -145,7 +150,46 @@ dc::node dc::parse::procedure_definition(lexer& l)
     expect(l, lexeme_type::kw_procedure);
     expect(l, lexeme_type::pu_period);
 
-    return node::make_procedure_definition(begin, name, parameters, {});
+    return node::make_procedure_definition(begin, name, parameters, return_type, {});
+}
+
+bool dc::parse::is_statement(lexer& l)
+{
+    return is_return_statement(l);
+}
+
+bool dc::parse::is_return_statement(lexer& l)
+{
+    return l.peek().type == lexeme_type::kw_return;
+}
+
+dc::node dc::parse::statement(lexer& l)
+{
+    if (is_return_statement(l))
+    {
+        return return_statement(l);
+    }
+
+    throw error(l.peek().begin);
+}
+
+dc::node dc::parse::return_statement(lexer& l)
+{
+    auto begin = expect(l, lexeme_type::kw_return).begin;
+    auto value = expression(l);
+    expect(l, lexeme_type::pu_period);
+    return node::make_return_statement(begin, value);
+}
+
+dc::node dc::parse::expression(lexer& l)
+{
+    return variable_expression(l);
+}
+
+dc::node dc::parse::variable_expression(lexer& l)
+{
+    auto lm = expect(l, lexeme_type::identifier);
+    return node::make_variable_expression(lm.begin, lm.value);
 }
 
 dc::node dc::parse::type(lexer& l)

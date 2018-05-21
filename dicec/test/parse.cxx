@@ -38,7 +38,7 @@ TEST_CASE("parse function and procedure definitions", "[parse]")
 
     auto const& add = source_unit.children[0];
     REQUIRE(add.type == dc::node_type::function_definition);
-    REQUIRE(add.children.size() == 2);
+    REQUIRE(add.children.size() == 3);
 
     auto const& parameter_list = add.children[0];
     REQUIRE(parameter_list.type == dc::node_type::parameter_list);
@@ -48,7 +48,10 @@ TEST_CASE("parse function and procedure definitions", "[parse]")
     REQUIRE(parameter.type == dc::node_type::parameter);
     REQUIRE(parameter.string_value == "x");
 
+    auto const& return_type = add.children[1];
+    REQUIRE(return_type.type == dc::node_type::int_type);
+
     auto const& main = source_unit.children[2];
     REQUIRE(main.type == dc::node_type::procedure_definition);
-    REQUIRE(main.children.size() == 2);
+    REQUIRE(main.children.size() == 3);
 }

@@ -1,8 +1,12 @@
 CXX=g++
-CXXFLAGS=-Wall -Wextra -Wpedantic -fmax-errors=1 -std=c++14 -O2 -I vendor/catch
+CXXFLAGS=                                                                \
+	-Wall -Wextra -Wpedantic -fmax-errors=1                              \
+	-std=c++14                                                           \
+	-D_GLIBCXX_DEBUG_PEDANTIC                                            \
+	-isystem vendor/catch -isystem $(shell llvm-config --includedir)
 
 LD=g++
-LDFLAGS=
+LDFLAGS=-L $(shell llvm-config --libdir) $(shell llvm-config --libs all)
 
 BUILD=build
 
