@@ -3,43 +3,54 @@
 #include "parse.hxx"
 #include "soloc.hxx"
 
+#include <cassert>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
+// FIXME: Currently the parser uses _new_ to allocate memory. This is very bad
+// and results in memory leaks. Instead, the _parser_ class should contain a
+// non-owning pointer to an arena, in which to allocate memory for the nodes.
+// However, I have no yet found a convincing polymorphic arena allocator that
+// fits the needs, so I may have to write one myself.
+
 namespace
 {
-    dc::lexeme expect(dc::lexer& l, dc::lexeme_type ty)
+    dc::lexeme expect(dc::parser& p, dc::lexeme_type ty)
     {
-        auto lm = l.read();
+        auto lm = p.l->read();
         if (lm.type != ty)
         {
-            throw dc::parse::error(lm.begin);
+            throw dc::parse_error(lm.begin);
         }
         return lm;
     }
 
     template<typename F, typename G>
-    std::vector<dc::node> many(dc::lexer& l, F&& is_rule, G&& rule)
+    auto many(F&& is_rule, G&& rule) -> std::vector<decltype(rule())>
     {
-        std::vector<dc::node> nodes;
-        while (is_rule(l))
+        std::vector<decltype(rule())> nodes;
+        while (is_rule())
         {
-            nodes.push_back(rule(l));
+            nodes.push_back(rule());
         }
         return nodes;
     }
 
     template<typename F>
-    std::vector<dc::node> separated_1(dc::lexer& l, dc::lexeme_type by, F&& rule)
+    auto separated_1(
+        dc::parser& p,
+        dc::lexeme_type by,
+        F&& rule
+    ) -> std::vector<decltype(rule())>
     {
-        std::vector<dc::node> nodes;
+        std::vector<decltype(rule())> nodes;
         for (;;)
         {
-            nodes.push_back(rule(l));
-            if (l.peek().type == by)
+            nodes.push_back(rule());
+            if (p.l->peek().type == by)
             {
-                l.read();
+                p.l->read();
             }
             else
             {
@@ -50,155 +61,187 @@ namespace
     }
 
     template<typename F, typename G>
-    std::vector<dc::node> separated(dc::lexer& l, dc::lexeme_type by, F&& is_rule, G&& rule)
+    auto separated(
+        dc::parser& p,
+        dc::lexeme_type by,
+        F&& is_rule,
+        G&& rule
+    ) -> std::vector<decltype(rule())>
     {
-        if (!is_rule(l))
+        if (!is_rule())
         {
             return {};
         }
-        return separated_1(l, by, std::forward<G>(rule));
+        return separated_1(p, by, std::forward<G>(rule));
     }
 }
 
-dc::node dc::parse::source_unit(lexer& l)
+dc::parser::parser(lexer& l)
+    : l(&l)
 {
-    auto definitions = many(l, &is_definition, &definition);
-    expect(l, lexeme_type::eof);
-    return dc::node::make_source_unit({0, 0}, definitions);
 }
 
-bool dc::parse::is_parameter(lexer& l)
+dc::source_unit* dc::parser::source_unit()
 {
-    return l.peek().type == lexeme_type::identifier;
+    auto definitions = many(
+        [this] { return is_definition(); },
+        [this] { return definition(); }
+    );
+    expect(*this, lexeme_type::eof);
+    return new dc::source_unit(soloc{0, 0}, std::move(definitions));
 }
 
-dc::node dc::parse::parameter_list(lexer& l)
+bool dc::parser::is_subroutine_parameter() const
 {
-    auto begin = expect(l, lexeme_type::pu_left_parenthesis).begin;
-    auto parameters = separated(l, lexeme_type::pu_comma, &is_parameter, &parameter);
-    expect(l, lexeme_type::pu_right_parenthesis).begin;
-    return node::make_parameter_list(begin, parameters);
+    return l->peek().type == lexeme_type::identifier;
 }
 
-dc::node dc::parse::parameter(lexer& l)
+std::vector<dc::subroutine_parameter> dc::parser::subroutine_parameter_list()
 {
-    auto name_lm = expect(l, lexeme_type::identifier);
-    auto parameter_type = type(l);
-    return node::make_parameter(name_lm.begin, name_lm.value, parameter_type);
+    expect(*this, lexeme_type::pu_left_parenthesis);
+    auto parameters = separated(
+        *this,
+        lexeme_type::pu_comma,
+        [this] { return is_subroutine_parameter(); },
+        [this] { return subroutine_parameter(); }
+    );
+    expect(*this, lexeme_type::pu_right_parenthesis).begin;
+    return parameters;
 }
 
-bool dc::parse::is_definition(lexer& l)
+dc::subroutine_parameter dc::parser::subroutine_parameter()
 {
-    return is_function_definition(l)
-        || is_procedure_definition(l);
+    auto name_lm = expect(*this, lexeme_type::identifier);
+    auto parameter_type = type();
+    return dc::subroutine_parameter{
+        name_lm.begin,
+        std::move(name_lm.value),
+        parameter_type,
+    };
 }
 
-bool dc::parse::is_function_definition(lexer& l)
+bool dc::parser::is_definition() const
 {
-    return l.peek().type == lexeme_type::kw_function;
+    return is_function_definition()
+        || is_procedure_definition();
 }
 
-bool dc::parse::is_procedure_definition(lexer& l)
+bool dc::parser::is_function_definition() const
 {
-    return l.peek().type == lexeme_type::kw_procedure;
+    return l->peek().type == lexeme_type::kw_function;
 }
 
-dc::node dc::parse::definition(lexer& l)
+bool dc::parser::is_procedure_definition() const
 {
-    if (is_function_definition(l))
+    return l->peek().type == lexeme_type::kw_procedure;
+}
+
+dc::definition* dc::parser::definition()
+{
+    if (is_function_definition())
     {
-        return function_definition(l);
+        return function_definition();
     }
 
-    if (is_procedure_definition(l))
+    if (is_procedure_definition())
     {
-        return procedure_definition(l);
+        return procedure_definition();
     }
 
-    throw error(l.peek().begin);
+    throw parse_error(l->peek().begin);
 }
 
-dc::node dc::parse::function_definition(lexer& l)
+dc::subroutine_definition* dc::parser::function_definition()
 {
-    auto begin = expect(l, lexeme_type::kw_function).begin;
-    auto name = expect(l, lexeme_type::identifier).value;
-    auto parameters = parameter_list(l);
-    auto return_type = type(l);
-    auto body_begin = expect(l, lexeme_type::pu_period).begin;
+    return subroutine_definition(subroutine_kind::function);
+}
 
-    auto body = node::make_statement_list(
-        body_begin,
-        many(l, &is_statement, &statement)
+dc::subroutine_definition* dc::parser::procedure_definition()
+{
+    return subroutine_definition(subroutine_kind::procedure);
+}
+
+dc::subroutine_definition* dc::parser::subroutine_definition(subroutine_kind kind)
+{
+    lexeme_type keyword;
+    switch (kind)
+    {
+    case subroutine_kind::function: keyword = lexeme_type::kw_function; break;
+    case subroutine_kind::procedure: keyword = lexeme_type::kw_procedure; break;
+    default: assert(false);
+    }
+
+    auto begin = expect(*this, keyword).begin;
+    auto name = expect(*this, lexeme_type::identifier).value;
+    auto parameters = subroutine_parameter_list();
+    auto return_type = type();
+    expect(*this, lexeme_type::pu_period);
+
+    auto body = many(
+        [this] { return is_statement(); },
+        [this] { return statement(); }
     );
 
-    expect(l, lexeme_type::kw_end);
-    expect(l, lexeme_type::kw_function);
-    expect(l, lexeme_type::pu_period);
+    expect(*this, lexeme_type::kw_end);
+    expect(*this, keyword);
+    expect(*this, lexeme_type::pu_period);
 
-    return node::make_function_definition(begin, name, parameters, return_type, body);
+    return new dc::subroutine_definition(
+        begin,
+        kind,
+        std::move(name),
+        std::move(parameters),
+        return_type,
+        std::move(body)
+    );
 }
 
-dc::node dc::parse::procedure_definition(lexer& l)
+bool dc::parser::is_statement() const
 {
-    auto begin = expect(l, lexeme_type::kw_procedure).begin;
-    auto name = expect(l, lexeme_type::identifier).value;
-    auto parameters = parameter_list(l);
-    auto return_type = type(l);
-    expect(l, lexeme_type::pu_period);
-
-    expect(l, lexeme_type::kw_end);
-    expect(l, lexeme_type::kw_procedure);
-    expect(l, lexeme_type::pu_period);
-
-    return node::make_procedure_definition(begin, name, parameters, return_type, {});
+    return is_return_statement();
 }
 
-bool dc::parse::is_statement(lexer& l)
+bool dc::parser::is_return_statement() const
 {
-    return is_return_statement(l);
+    return l->peek().type == lexeme_type::kw_return;
 }
 
-bool dc::parse::is_return_statement(lexer& l)
+dc::statement* dc::parser::statement()
 {
-    return l.peek().type == lexeme_type::kw_return;
-}
-
-dc::node dc::parse::statement(lexer& l)
-{
-    if (is_return_statement(l))
+    if (is_return_statement())
     {
-        return return_statement(l);
+        return return_statement();
     }
 
-    throw error(l.peek().begin);
+    throw parse_error(l->peek().begin);
 }
 
-dc::node dc::parse::return_statement(lexer& l)
+dc::return_statement* dc::parser::return_statement()
 {
-    auto begin = expect(l, lexeme_type::kw_return).begin;
-    auto value = expression(l);
-    expect(l, lexeme_type::pu_period);
-    return node::make_return_statement(begin, value);
+    auto begin = expect(*this, lexeme_type::kw_return).begin;
+    auto value = expression();
+    expect(*this, lexeme_type::pu_period);
+    return new dc::return_statement(begin, value);
 }
 
-dc::node dc::parse::expression(lexer& l)
+dc::expression* dc::parser::expression()
 {
-    return variable_expression(l);
+    return variable_expression();
 }
 
-dc::node dc::parse::variable_expression(lexer& l)
+dc::variable_expression* dc::parser::variable_expression()
 {
-    auto lm = expect(l, lexeme_type::identifier);
-    return node::make_variable_expression(lm.begin, lm.value);
+    auto lm = expect(*this, lexeme_type::identifier);
+    return new dc::variable_expression(lm.begin, lm.value);
 }
 
-dc::node dc::parse::type(lexer& l)
+dc::type* dc::parser::type()
 {
-    auto begin = expect(l, lexeme_type::kw_int).begin;
-    return node::make_int_type(begin);
+    auto begin = expect(*this, lexeme_type::kw_int).begin;
+    return new dc::int_type(begin);
 }
 
-dc::parse::error::error(soloc current)
+dc::parse_error::parse_error(soloc current)
     : std::runtime_error::runtime_error("Parse error")
     , current(current)
 {

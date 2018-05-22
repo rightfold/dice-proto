@@ -10,11 +10,11 @@ TEST_CASE("parse empty source", "[parse]")
 {
     std::string source("");
     dc::lexer lexer(&*source.begin(), &*source.end());
+    dc::parser parser(lexer);
 
-    auto source_unit = dc::parse::source_unit(lexer);
+    auto source_unit = parser.source_unit();
 
-    REQUIRE(source_unit.type == dc::node_type::source_unit);
-    REQUIRE(source_unit.children.size() == 0);
+    REQUIRE(source_unit->definitions.size() == 0);
 }
 
 TEST_CASE("parse function and procedure definitions", "[parse]")
@@ -30,28 +30,13 @@ TEST_CASE("parse function and procedure definitions", "[parse]")
         END PROCEDURE.
     )");
     dc::lexer lexer(&*source.begin(), &*source.end());
+    dc::parser parser(lexer);
 
-    auto source_unit = dc::parse::source_unit(lexer);
+    auto source_unit = parser.source_unit();
 
-    REQUIRE(source_unit.type == dc::node_type::source_unit);
-    REQUIRE(source_unit.children.size() == 3);
+    REQUIRE(source_unit->definitions.size() == 3);
 
-    auto const& add = source_unit.children[0];
-    REQUIRE(add.type == dc::node_type::function_definition);
-    REQUIRE(add.children.size() == 3);
-
-    auto const& parameter_list = add.children[0];
-    REQUIRE(parameter_list.type == dc::node_type::parameter_list);
-    REQUIRE(parameter_list.children.size() == 2);
-
-    auto const& parameter = parameter_list.children[0];
-    REQUIRE(parameter.type == dc::node_type::parameter);
-    REQUIRE(parameter.string_value == "x");
-
-    auto const& return_type = add.children[1];
-    REQUIRE(return_type.type == dc::node_type::int_type);
-
-    auto const& main = source_unit.children[2];
-    REQUIRE(main.type == dc::node_type::procedure_definition);
-    REQUIRE(main.children.size() == 3);
+    REQUIRE(dynamic_cast<dc::subroutine_definition*>(source_unit->definitions[0]));
+    REQUIRE(dynamic_cast<dc::subroutine_definition*>(source_unit->definitions[1]));
+    REQUIRE(dynamic_cast<dc::subroutine_definition*>(source_unit->definitions[2]));
 }

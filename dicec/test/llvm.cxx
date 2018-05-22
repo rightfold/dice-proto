@@ -1,6 +1,6 @@
 #include "../src/lex.hxx"
-#include "../src/llvm.hxx"
 #include "../src/parse.hxx"
+#include "../src/scope.hxx"
 
 #include <catch.hpp>
 
@@ -18,12 +18,17 @@ TEST_CASE("llvm works", "[llvm]")
         END FUNCTION.
     )");
     dc::lexer lexer(&*source.begin(), &*source.end());
-    auto source_unit = dc::parse::source_unit(lexer);
+    dc::parser parser(lexer);
 
-    llvm::LLVMContext context;
-    llvm::Module module("", context);
+    auto source_unit = parser.source_unit();
 
-    dc::llvm::convert_source_unit(&module, source_unit);
+    llvm::LLVMContext llvm_context;
+    llvm::Module module("", llvm_context);
+    dc::llvm_context context{&module};
+
+    dc::scope<llvm::Function*> scope;
+    source_unit->llvm_declare(context, scope);
+    source_unit->llvm_define(context, scope);
 
     llvm::outs() << source;
     module.print(llvm::outs(), nullptr);

@@ -5,39 +5,47 @@
 #include "soloc.hxx"
 
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace dc
 {
-    namespace parse
+    class parser
     {
-        node source_unit(lexer& l);
+    public:
+        explicit parser(lexer& l);
 
-        bool is_parameter(lexer& l);
-        node parameter_list(lexer& l);
-        node parameter(lexer& l);
+        dc::source_unit* source_unit();
 
-        bool is_definition(lexer& l);
-        bool is_function_definition(lexer& l);
-        bool is_procedure_definition(lexer& l);
-        node definition(lexer& l);
-        node function_definition(lexer& l);
-        node procedure_definition(lexer& l);
+        bool is_subroutine_parameter() const;
+        std::vector<dc::subroutine_parameter> subroutine_parameter_list();
+        dc::subroutine_parameter subroutine_parameter();
 
-        bool is_statement(lexer& l);
-        bool is_return_statement(lexer& l);
-        node statement(lexer& l);
-        node return_statement(lexer& l);
+        bool is_definition() const;
+        bool is_function_definition() const;
+        bool is_procedure_definition() const;
+        dc::definition* definition();
+        dc::subroutine_definition* function_definition();
+        dc::subroutine_definition* procedure_definition();
+        dc::subroutine_definition* subroutine_definition(subroutine_kind kind);
 
-        node expression(lexer& l);
-        node variable_expression(lexer& l);
+        bool is_statement() const;
+        bool is_return_statement() const;
+        dc::statement* statement();
+        dc::return_statement* return_statement();
 
-        node type(lexer& l);
+        dc::expression* expression();
+        dc::variable_expression* variable_expression();
 
-        struct error : std::runtime_error
-        {
-            explicit error(soloc current);
+        dc::type* type();
 
-            soloc current;
-        };
-    }
+        lexer* l;
+    };
+
+    struct parse_error : std::runtime_error
+    {
+        explicit parse_error(soloc current);
+
+        soloc current;
+    };
 }
