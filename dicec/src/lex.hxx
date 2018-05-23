@@ -18,6 +18,7 @@ namespace dc
 
         pu_colon_colon,
 
+        kw_character,
         kw_end,
         kw_function,
         kw_int,

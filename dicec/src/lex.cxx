@@ -120,6 +120,7 @@ dc::lexeme dc::lexer::read_identifier_or_keyword()
         }                                                                \
         while (false)
 
+    DC_LEX_KEYWORD("CHARACTER", kw_character);
     DC_LEX_KEYWORD("END", kw_end);
     DC_LEX_KEYWORD("FUNCTION", kw_function);
     DC_LEX_KEYWORD("INT", kw_int);

@@ -1,6 +1,6 @@
 CXX=g++
 CXXFLAGS=                                                                \
-	-Wall -Wextra -Wpedantic -fmax-errors=1                              \
+	-Wall -Wextra -Wpedantic -fmax-errors=5                              \
 	-std=c++14                                                           \
 	-D_GLIBCXX_DEBUG_PEDANTIC                                            \
 	-isystem vendor/catch -isystem $(shell llvm-config --includedir)     \

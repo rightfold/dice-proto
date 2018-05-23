@@ -232,11 +232,30 @@ dc::expression* dc::parser::expression()
 dc::variable_expression* dc::parser::variable_expression()
 {
     auto lm = expect(*this, lexeme_type::identifier);
-    return new dc::variable_expression(lm.begin, lm.value);
+    auto e = new dc::variable_expression(lm.begin, lm.value);
+
+    // TODO: Remove this. It was for testing code generation prior to having a
+    // type checker.
+    if (lm.value == "x")
+    {
+        e->type = new dc::character_type(lm.begin);
+    }
+    else
+    {
+        e->type = new dc::int_type(lm.begin);
+    }
+
+    return e;
 }
 
 dc::type* dc::parser::type()
 {
+    if (l->peek().type == lexeme_type::kw_character)
+    {
+        auto begin = expect(*this, lexeme_type::kw_character).begin;
+        return new dc::character_type(begin);
+    }
+
     auto begin = expect(*this, lexeme_type::kw_int).begin;
     return new dc::int_type(begin);
 }

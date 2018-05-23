@@ -4,6 +4,7 @@
 #include "../scope.hxx"
 #include "../soloc.hxx"
 #include "base.hxx"
+#include "type.hxx"
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Value.h>
@@ -15,7 +16,9 @@ namespace dc
     class expression : public node
     {
     public:
-        using node::node;
+        explicit expression(soloc begin);
+
+        dc::type* type;
 
         virtual llvm::Value* llvm_generate(
             llvm_context& c,
